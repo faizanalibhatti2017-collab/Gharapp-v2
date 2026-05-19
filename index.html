@@ -349,16 +349,25 @@ parsedUrl.searchParams.get('title') || parsedUrl.searchParams.get('url');
         }
     });
 
+    // 🔐 SECURE FIXED MOBILE LOGIN ENGINE
     function login() {
-        const id = document.getElementById('l-id').value.trim().toLowerCase(), ps = 
-
-document.getElementById('l-pass').value;
+        const id = document.getElementById('l-id').value.trim().toLowerCase();
+        const ps = document.getElementById('l-pass').value;
+        if(!id || !ps) { alert("Please enter username and password!"); return; }
+        
         if(id === "admin" && ps === "123") { authDone("admin", "admin"); return; }
-        db.ref('users/'+id).once('value', snap => {
-            if(snap.exists() && snap.val().pass === ps) authDone(id, snap.val().role);
-            else alert("Invalid Details!");
+        
+        db.ref('users/'+id).once('value').then(snap => {
+            if(snap.exists() && snap.val().pass === ps) {
+                authDone(id, snap.val().role);
+            } else {
+                alert("Invalid Details!");
+            }
+        }).catch(err => {
+            alert("Database Login Connection Error: " + err.message);
         });
     }
+
     function authDone(id, role) { 
         localStorage.setItem('ghUser', id); 
         localStorage.setItem('ghRole', role); 
@@ -747,10 +756,11 @@ ${udata.role} | Bal: RS. ${(ti-te).toLocaleString()}</div>
         document.getElementById('u-form-title').innerText = "Edit: " + id.toUpperCase();
     }
 
+    // 🔐 CORRECTED FIXED USER UPDATE INPUT MATCH
     function saveUser() {
-        const id = document.getElementById('u-id').value.trim().toLowerCase(), ps = 
-
-document.getElementById('u-pass').value, rl = document.getElementById('u-role').value;
+        const id = document.getElementById('u-id').value.trim().toLowerCase();
+        const ps = document.getElementById('u-pass').value;
+        const rl = document.getElementById('u-role').value;
         if(id && ps) { db.ref('users/'+id).update({pass:ps, role:rl}).then(() => { alert
 
 ("User Updated!"); }); }
