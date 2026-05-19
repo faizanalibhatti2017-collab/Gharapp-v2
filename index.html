@@ -538,7 +538,7 @@ processBruteForceScanEntry(decodedText); }, (err) => {})
         }
     }
 
-    // 🔥 SMART THERMAL BILL PARSER ADDED INSIDE YOUR ORIGINAL LOOP
+    // 🎯 TARGETED UNILEVER PRODUCT PARSER
     function processBruteForceScanEntry(scannedCode) {
         stopCameraEngine();
         const today = new Date().toISOString().split('T')[0];
@@ -547,129 +547,111 @@ processBruteForceScanEntry(decodedText); }, (err) => {})
         let finalAmt = null;
 
         const blocklistYears = ["2024", "2025", "2026", "2027"];
+        
+        // Unilever brands list mapping
+        const unileverBrands = ["unilever", "sunsilk", "lux", "dove", "surf excel", "surf", 
+
+"knorr", "lifebuoy", "vim", "lipton", "ponds", "vaseline", "tresemme", "clear", "glow & 
+
+lovely", "fair & lovely", "rexona", "close up", "closeup", "comfort"];
+        
+        let isUnileverProduct = false;
+        let lowerRaw = rawText.toLowerCase();
+
+        // Check if scanned code matches any Unilever brand
+        for (let brand of unileverBrands) {
+            if (lowerRaw.includes(brand)) {
+                isUnileverProduct = true;
+                break;
+            }
+        }
 
         if (!isNaN(rawText.replace(/,/g, "")) && parseFloat(rawText.replace(/,/g, "")) > 0 
 
 && !blocklistYears.includes(rawText.trim())) {
             finalAmt = parseFloat(rawText.replace(/,/g, ""));
-            displayDetail = "Scan Entry";
+            displayDetail = "Unilever Product";
         } else {
             const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
             let parsedStr = rawText.replace(/\d{2,4}[-\/\.]\d{2}[-\/\.]\d{2,4}/g, 
 
 "").replace(/\d{2}:\d{2}(:\d{2})?/g, "").replace(/\d{7,20}/g, "");
 
-            // 1. Counter Bill Total Line matching (e.g. TOTAL Amount line)
-            let totalLineFound = false;
+            // 1. Line match for Unilever item and price extraction
             for (let line of lines) {
-                if (/total/i.test(line)) {
+                let lowerLine = line.toLowerCase();
+                let lineHasBrand = unileverBrands.some(brand => lowerLine.includes(brand));
+                
+                if (lineHasBrand) {
+                    isUnileverProduct = true;
                     let cleanLine = line.replace(/,/g, "");
                     let lineNumbers = cleanLine.match(/\d+(?:\.\d{1,2})?/g) || [];
                     let filteredNums = lineNumbers.filter(v => !blocklistYears.includes(v) 
 
-&& parseFloat(v) > 0);
+&& parseFloat(v) > 5 && parseFloat(v) < 100000);
+                    
                     if (filteredNums.length > 0) {
                         finalAmt = parseFloat(filteredNums[filteredNums.length - 1]);
-                        displayDetail = "Counter Bill Total";
-                        totalLineFound = true;
+                        let numStr = filteredNums[filteredNums.length - 1];
+                        let namePart = line.substring(0, line.lastIndexOf(numStr)).trim();
+                        displayDetail = namePart.replace(/[:=\-\s\.]+$/, "").trim();
                         break;
                     }
                 }
             }
 
-            // 2. Single item parsing logic (e.g. SHAMPOO SUNSILK 450)
-            if (!totalLineFound && lines.length > 0) {
+            // 2. Fallback if no specific brand line has numbers but text matches Unilever
+            if (!finalAmt && isUnileverProduct && lines.length > 0) {
                 let targetLine = lines[0];
-                if (/items|qty|date|rate|shop/i.test(targetLine) && lines.length > 1) {
-                    targetLine = lines[1]; 
-                }
                 let cleanLine = targetLine.replace(/,/g, "");
                 let lineNumbers = cleanLine.match(/\d+(?:\.\d{1,2})?/g) || [];
                 let filteredNums = lineNumbers.filter(v => !blocklistYears.includes(v) && 
 
-parseFloat(v) > 5 && parseFloat(v) < 100000);
-                
+parseFloat(v) > 5);
                 if (filteredNums.length > 0) {
                     finalAmt = parseFloat(filteredNums[filteredNums.length - 1]);
-                    let numStr = filteredNums[filteredNums.length - 1];
-                    let namePart = targetLine.substring(0, targetLine.lastIndexOf
-
-(numStr)).trim();
-                    displayDetail = namePart.replace(/[:=\-\s\.]+$/, "").trim();
+                    displayDetail = targetLine.replace(/\d+(?:\.\d{1,2})?/g, "").trim();
                 }
-            }
-
-            // 3. Fallbacks (Original Keyword Matches)
-            if (!finalAmt) {
-                const smartKeywordsRegex = /(?:rs|pkr|amount|payable|total|amt)\.?\s*[:=\-
-
-\s]*\s*([0-9,\s\.]+)/i;
-                const match = parsedStr.match(smartKeywordsRegex);
-                if (match && match[1]) {
-                    let cleanNumStr = match[1].replace(/,/g, "").replace(/\s/g, "").trim();
-                    const secondaryMatch = cleanNumStr.match(/^\d+(?:\.\d{1,2})?/);
-                    if (secondaryMatch && !blocklistYears.includes(secondaryMatch[0]) && 
-
-parseFloat(secondaryMatch[0]) > 0) {
-                        finalAmt = parseFloat(secondaryMatch[0]);
-                    }
-                }
-            }
-
-            // 4. Fallback line scan
-            if (!finalAmt) {
-                for (let line of lines) {
-                    if (/(?:rs|pkr|amount|payable|total|amt)/i.test(line)) {
-                        let parsedLine = line.replace(/,/g, "");
-                        const digitsFound = parsedLine.match(/\d+(?:\.\d{1,2})?/);
-                        if (digitsFound && !blocklistYears.includes(digitsFound[0])) {
-                            let val = parseFloat(digitsFound[0]);
-                            if (val > 0) { finalAmt = val; break; }
-                        }
-                    }
-                }
-            }
-
-            // 5. Final fallback remaining digit values
-            if (!finalAmt) {
-                let absoluteClean = parsedStr.replace(/,/g, "");
-                const remainingNumbers = absoluteClean.match(/\d+(?:\.\d{1,2})?/g) || [];
-                const filtered = remainingNumbers.filter(v => !blocklistYears.includes(v) 
-
-&& parseFloat(v) > 31 && parseFloat(v) < 999999);
-                if (filtered.length > 0) finalAmt = parseFloat(filtered[filtered.length - 
-
-1]);
             }
         }
 
-        if (rawText.toUpperCase().includes("SSGC")) { displayDetail = "SSGC Bill Paid"; } 
-        else if (rawText.toLowerCase().includes("ke.com.pk") || rawText.toLowerCase
+        // Final Verification
+        if (isUnileverProduct) {
+            if (!displayDetail) displayDetail = "Unilever Product";
+            
+            if (finalAmt && !isNaN(finalAmt) && finalAmt > 0) {
+                executeDatabasePush(today, displayDetail, finalAmt, rawText);
+            } else {
+                setTimeout(() => {
+                    const userAmtInput = prompt(`Unilever Product Detected!\n\nProduct: 
 
-().includes("kelectric")) { displayDetail = "K-Electric Bill Paid"; } 
-        else if (rawText.toLowerCase().includes("mobilink")) { displayDetail = "Mobilink 
-
-Bill Paid"; } 
-        else if (!displayDetail) {
-            displayDetail = rawText.length > 30 ? "Scan: " + rawText.substring(0, 27) + 
-
-"..." : "Scan: " + rawText;
-        }
-
-        if (finalAmt && !isNaN(finalAmt) && finalAmt > 0) {
-            executeDatabasePush(today, displayDetail, finalAmt, rawText);
+"${displayDetail}"\n\nEnter Amount (RS):`, "0");
+                    finalAmt = parseFloat(userAmtInput);
+                    if(userAmtInput !== null && !isNaN(finalAmt) && finalAmt >= 0) {
+                        executeDatabasePush(today, displayDetail, finalAmt, rawText);
+                    } else {
+                        alert("Cancelled.");
+                        if(html5QrCode) startCameraEngine();
+                    }
+                }, 150);
+            }
         } else {
+            // Non-Unilever items ko alert de kar bypass ya standard alert trigger karega
             setTimeout(() => {
-                const userAmtInput = prompt(`Code Detected Successfully!\n\nData: 
+                const manualAmt = prompt(`Non-Unilever or Standard Code Detected!\n\nData: 
 
-"${rawText.substring(0,40)}"\n\nEnter Bill / Product Amount (RS):`, "0");
-                finalAmt = parseFloat(userAmtInput);
-                if(userAmtInput !== null && !isNaN(finalAmt) && finalAmt >= 0) {
-                    executeDatabasePush(today, displayDetail, finalAmt, rawText);
-                } else {
-                    alert("Operation cancelled.");
-                    if(html5QrCode) startCameraEngine();
+"${rawText.substring(0,30)}"\n\nEnter Amount to save anyway, or press Cancel:`, "0");
+                if (manualAmt !== null) {
+                    let amt = parseFloat(manualAmt);
+                    if (!isNaN(amt) && amt > 0) {
+                        let desc = rawText.length > 25 ? rawText.substring(0,22) + "..." : 
+
+rawText;
+                        executeDatabasePush(today, "Scan: " + desc, amt, rawText);
+                        return;
+                    }
                 }
+                if(html5QrCode) startCameraEngine();
             }, 150);
         }
     }
@@ -772,7 +754,6 @@ document.getElementById('l-pass').value, rl = document.getElementById('u-role').
 ("User Updated!"); }); }
     }
 
-    // ORIGINAL FUNCTION
     function addEntry() {
         const d = document.getElementById('i-date').value, n = document.getElementById('i-
 
