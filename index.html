@@ -359,10 +359,10 @@ parsedUrl.searchParams.get('title') || parsedUrl.searchParams.get('url');
         }
     });
 
+    // 🔐 CORRECTED FIXED LOGIN ENGINE
     function login() {
-        const id = document.getElementById('l-id').value.trim().toLowerCase(), ps = 
-
-document.getElementById('l-pass').value;
+        const id = document.getElementById('l-id').value.trim().toLowerCase();
+        const ps = document.getElementById('l-pass').value;
         if(id === "admin" && ps === "123") { authDone("admin", "admin"); return; }
         db.ref('users/'+id).once('value', snap => {
             if(snap.exists() && snap.val().pass === ps) authDone(id, snap.val().role);
@@ -422,7 +422,6 @@ renderData(); });
                 const a = parseFloat(r.a)||0;
                 if(r.t === 'inc') ti += a; else te += a;
                 
-                // Edit target configuration trigger if barcode reference exists
                 let barEditAttr = r.bc ? `style="border-bottom: 1px dashed var(--primary); 
 
 cursor:pointer;" onclick="loadEntryToForm('${k}', '${r.n}', ${a}, '${r.d}', '${r.t}', 
@@ -452,9 +451,7 @@ onclick="if(confirm('Delete?')) db.ref('data/${viewingID}/${k}').remove()"></i><
         document.getElementById('i-amt').value = amt;
         document.getElementById('i-date').value = date;
         document.getElementById('i-type').value = type;
-        document.getElementById('i-barcode-ref').value = barcode; // Track barcode pointer 
-
-map
+        document.getElementById('i-barcode-ref').value = barcode; 
         window.editingEntryKey = key;
         alert("Item details loaded to form. Change name/price and click 'SAVE' to update 
 
@@ -579,7 +576,6 @@ viewfinderWidth * 0.9, height: viewfinderHeight * 0.65 }; },
         setTimeout(() => { toast.style.display = 'none'; }, 2500);
     }
 
-    // ⚡ THE PLAZA REAL-SPEED ENGINE (ZERO PROMPTS, PURE AUTO MATCH)
     function processBrForceScanEntry(scannedCode) {
         isProcessingScan = true;
         const today = new Date().toISOString().split('T')[0];
@@ -596,13 +592,11 @@ viewfinderWidth * 0.9, height: viewfinderHeight * 0.65 }; },
 
         db.ref('scan_memory/' + viewingID + '/' + firebaseKeySafe).once('value', snap => {
             if (snap.exists()) {
-                // 🚀 PLAZA MODE: Match database text and save instantly!
                 let product = snap.val();
                 executeAutoDatabasePush(today, product.name, product.price, 
 
 firebaseKeySafe);
             } else {
-                // 🚀 NEW PRODUCT AUTO-PILOT INGESTION
                 let placeholderName = "Item-" + rawText.substring(0, 7);
                 let defaultPrice = 0;
 
@@ -624,16 +618,11 @@ firebaseKeySafe);
             n: detail,
             a: amount,
             t: 'exp',
-            bc: barcodeRef // Link transaction item row to memory registry tracker
+            bc: barcodeRef 
         }).then(() => {
             showToast(`🛒 Added: ${detail} - RS. ${amount}`);
-            // Instant cooldown cycle refresh to unlock continuous scanner view pipeline
-            setTimeout(() => {
-                isProcessingScan = false;
-            }, 1500);
-        }).catch(err => {
-            isProcessingScan = false;
-        });
+            setTimeout(() => { isProcessingScan = false; }, 1500);
+        }).catch(err => { isProcessingScan = false; });
     }
 
     function addEntry() {
@@ -645,13 +634,9 @@ firebaseKeySafe);
 
         if(d && n) {
             if(window.editingEntryKey) {
-                // Update transaction log record 
                 db.ref(`data/${viewingID}/${window.editingEntryKey}`).update({ d, n, a, t 
 
 }).then(() => {
-                    // 🧠 AUTO-LEARN LOGIC: Update scanned repository database map 
-
-parameters background cache!
                     if (bcRef) {
                         db.ref(`scan_memory/${viewingID}/${bcRef}`).set({ name: n, price: a 
 
@@ -661,7 +646,6 @@ parameters background cache!
                     clearFormValues();
                 });
             } else {
-                // Normal direct custom form submission execution
                 db.ref('data/'+viewingID).push({d, n, a, t});
                 clearFormValues();
             }
@@ -793,6 +777,7 @@ ${udata.role} | Bal: RS. ${(ti-te).toLocaleString()}</div>
         document.getElementById('u-form-title').innerText = "Edit: " + id.toUpperCase();
     }
 
+    // 🔐 FIXED USER SAVE INTERFACE LOGIC
     function saveUser() {
         const id = document.getElementById('u-id').value.trim().toLowerCase(), ps = 
 
