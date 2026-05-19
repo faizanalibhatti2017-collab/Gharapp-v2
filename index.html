@@ -331,7 +331,6 @@ southeast1.firebasedatabase.app",
 viewingID = myID;
     let html5QrCode = null;
 
-    // SHARE INTENT RECEIVER LOGIC FOR PWAs
     window.addEventListener('DOMContentLoaded', () => {
         const parsedUrl = new URL(window.location.href);
         const sharedText = parsedUrl.searchParams.get('text') || 
@@ -339,7 +338,6 @@ viewingID = myID;
 parsedUrl.searchParams.get('title') || parsedUrl.searchParams.get('url');
         
         if (sharedText) {
-            // Check if user is logged in, else defer parsing until login
             if (myID) {
                 setTimeout(() => {
                     processBruteForceScanEntry(sharedText);
@@ -351,9 +349,8 @@ parsedUrl.searchParams.get('title') || parsedUrl.searchParams.get('url');
     });
 
     function login() {
-        const id = document.getElementById('l-id').value.trim().toLowerCase(), ps = 
-
-document.getElementById('l-pass').value;
+        const id = document.getElementById('l-id').value.trim().toLowerCase();
+        const ps = document.getElementById('l-pass').value.trim();
         if(id === "admin" && ps === "123") { authDone("admin", "admin"); return; }
         db.ref('users/'+id).once('value', snap => {
             if(snap.exists() && snap.val().pass === ps) authDone(id, snap.val().role);
@@ -374,7 +371,6 @@ document.getElementById('l-pass').value;
 'block'; loadMonitor(); }
         setupDates(); loadData(myID);
 
-        // Process any deferred shared text after successful authorization
         const pendingText = localStorage.getItem('pendingSharedText');
         if (pendingText) {
             localStorage.removeItem('pendingSharedText');
@@ -520,43 +516,29 @@ onclick="if(confirm('Delete Bill?')) db.ref('utilities/${viewingID}/${k}').remov
 
             const config = { 
                 fps: 50, 
-                videoConstraints: {
-                    facingMode: "environment",
-                    width: { ideal: 1920 }, 
-                    height: { ideal: 1080 }
-                },
-                qrbox: (viewfinderWidth, viewfinderHeight) => {
-                    return { width: viewfinderWidth * 0.9, height: viewfinderHeight * 0.65 
+                videoConstraints: { facingMode: "environment", width: { ideal: 1920 }, 
 
-};
-                },
+height: { ideal: 1080 } },
+                qrbox: (viewfinderWidth, viewfinderHeight) => { return { width: 
+
+viewfinderWidth * 0.9, height: viewfinderHeight * 0.65 }; },
                 formatsToSupport: formatsToSupport
             };
 
-            html5QrCode.start(
-                { facingMode: "environment" },
-                config,
-                (decodedText) => {
-                    processBruteForceScanEntry(decodedText);
-                },
-                (err) => {}
-            ).then(() => {
-                // Engine Live
-            }).catch(err => {
-                alert("Camera error: " + err);
-            });
+            html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => { 
+
+processBruteForceScanEntry(decodedText); }, (err) => {})
+            .then(() => {}).catch(err => { alert("Camera error: " + err); });
         }
     }
 
     function stopCameraEngine() {
         if(html5QrCode) {
-            html5QrCode.stop().then(() => {
-                html5QrCode = null;
-            }).catch(e => {});
+            html5QrCode.stop().then(() => { html5QrCode = null; }).catch(e => {});
         }
     }
 
-    // ⚡ ULTRA-POWERFUL DYNAMIC INTELLIGENT PARSER FOR EMAIL/TEXT / SHARE INTENTS
+    // 🔥 SMART THERMAL BILL PARSER ADDED INSIDE YOUR ORIGINAL LOOP
     function processBruteForceScanEntry(scannedCode) {
         stopCameraEngine();
         const today = new Date().toISOString().split('T')[0];
@@ -564,25 +546,20 @@ onclick="if(confirm('Delete Bill?')) db.ref('utilities/${viewingID}/${k}').remov
         let displayDetail = "";
         let finalAmt = null;
 
-        // Current contextual standard year lists block
         const blocklistYears = ["2024", "2025", "2026", "2027"];
 
-        // 1. Agar text direct akela floating dynamic positive digit number hai
         if (!isNaN(rawText.replace(/,/g, "")) && parseFloat(rawText.replace(/,/g, "")) > 0 
 
 && !blocklistYears.includes(rawText.trim())) {
             finalAmt = parseFloat(rawText.replace(/,/g, ""));
             displayDetail = "Scan Entry";
         } else {
-            // Line by line breakdown karo counter bills (jaise National Shop) check karne 
-
-ke liye
             const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-            let parsedStr = rawText.replace(/\d{2,4}[-\/\.]\d{2}[-\/\.]\d{2,4}/g, "");
-            parsedStr = parsedStr.replace(/\d{2}:\d{2}(:\d{2})?/g, "");
-            parsedStr = parsedStr.replace(/\d{7,20}/g, "");
+            let parsedStr = rawText.replace(/\d{2,4}[-\/\.]\d{2}[-\/\.]\d{2,4}/g, 
 
-            // STEP A: Poore text me check karo agar "TOTAL" ki line maujood hai
+"").replace(/\d{2}:\d{2}(:\d{2})?/g, "").replace(/\d{7,20}/g, "");
+
+            // 1. Counter Bill Total Line matching (e.g. TOTAL Amount line)
             let totalLineFound = false;
             for (let line of lines) {
                 if (/total/i.test(line)) {
@@ -600,9 +577,7 @@ ke liye
                 }
             }
 
-            // STEP B: Agar TOTAL line nahi mili, toh single item check karo (e.g. SHAMPOO 
-
-SUNSILK 450)
+            // 2. Single item parsing logic (e.g. SHAMPOO SUNSILK 450)
             if (!totalLineFound && lines.length > 0) {
                 let targetLine = lines[0];
                 if (/items|qty|date|rate|shop/i.test(targetLine) && lines.length > 1) {
@@ -624,7 +599,7 @@ parseFloat(v) > 5 && parseFloat(v) < 100000);
                 }
             }
 
-            // STEP C: CRITICAL FALLBACKS (Aapka original keyword-based check)
+            // 3. Fallbacks (Original Keyword Matches)
             if (!finalAmt) {
                 const smartKeywordsRegex = /(?:rs|pkr|amount|payable|total|amt)\.?\s*[:=\-
 
@@ -641,7 +616,7 @@ parseFloat(secondaryMatch[0]) > 0) {
                 }
             }
 
-            // STEP D: LINE BY LINE SCANNER FALLBACK
+            // 4. Fallback line scan
             if (!finalAmt) {
                 for (let line of lines) {
                     if (/(?:rs|pkr|amount|payable|total|amt)/i.test(line)) {
@@ -655,39 +630,32 @@ parseFloat(secondaryMatch[0]) > 0) {
                 }
             }
 
-            // STEP E: REVERSE SCAN FALLBACK
+            // 5. Final fallback remaining digit values
             if (!finalAmt) {
                 let absoluteClean = parsedStr.replace(/,/g, "");
                 const remainingNumbers = absoluteClean.match(/\d+(?:\.\d{1,2})?/g) || [];
-                const filtered = remainingNumbers.filter(v => {
-                    let n = parseFloat(v);
-                    if (blocklistYears.includes(v)) return false;
-                    if (n <= 31) return false;
-                    if (n > 999999) return false;
-                    return true;
-                });
-                if (filtered.length > 0) {
-                    finalAmt = parseFloat(filtered[filtered.length - 1]);
-                }
+                const filtered = remainingNumbers.filter(v => !blocklistYears.includes(v) 
+
+&& parseFloat(v) > 31 && parseFloat(v) < 999999);
+                if (filtered.length > 0) finalAmt = parseFloat(filtered[filtered.length - 
+
+1]);
             }
         }
 
-        // Title company automatic mapping filters
-        if (rawText.toUpperCase().includes("SSGC")) {
-            displayDetail = "SSGC Bill Paid";
-        } else if (rawText.toLowerCase().includes("ke.com.pk") || rawText.toLowerCase
+        if (rawText.toUpperCase().includes("SSGC")) { displayDetail = "SSGC Bill Paid"; } 
+        else if (rawText.toLowerCase().includes("ke.com.pk") || rawText.toLowerCase
 
-().includes("kelectric")) {
-            displayDetail = "K-Electric Bill Paid";
-        } else if (rawText.toLowerCase().includes("mobilink")) {
-            displayDetail = "Mobilink Bill Paid";
-        } else if (!displayDetail) {
+().includes("kelectric")) { displayDetail = "K-Electric Bill Paid"; } 
+        else if (rawText.toLowerCase().includes("mobilink")) { displayDetail = "Mobilink 
+
+Bill Paid"; } 
+        else if (!displayDetail) {
             displayDetail = rawText.length > 30 ? "Scan: " + rawText.substring(0, 27) + 
 
 "..." : "Scan: " + rawText;
         }
 
-        // Database insertion decision logic execution
         if (finalAmt && !isNaN(finalAmt) && finalAmt > 0) {
             executeDatabasePush(today, displayDetail, finalAmt, rawText);
         } else {
@@ -699,7 +667,7 @@ parseFloat(secondaryMatch[0]) > 0) {
                 if(userAmtInput !== null && !isNaN(finalAmt) && finalAmt >= 0) {
                     executeDatabasePush(today, displayDetail, finalAmt, rawText);
                 } else {
-                    alert("Operation cancelled or invalid amount entered.");
+                    alert("Operation cancelled.");
                     if(html5QrCode) startCameraEngine();
                 }
             }, 150);
@@ -707,12 +675,9 @@ parseFloat(secondaryMatch[0]) > 0) {
     }
 
     function executeDatabasePush(date, detail, amount, rawCode) {
-        db.ref('data/' + viewingID).push({
-            d: date,
-            n: detail,
-            a: amount,
-            t: 'exp'
-        }).then(() => {
+        db.ref('data/' + viewingID).push({ d: date, n: detail, a: amount, t: 'exp' }).then
+
+(() => {
             alert(`✅ Record Saved Successfully!\n\nDetail: ${detail}\nAmount Added: RS. 
 
 ${amount.toLocaleString()}`);
@@ -807,6 +772,7 @@ document.getElementById('l-pass').value, rl = document.getElementById('u-role').
 ("User Updated!"); }); }
     }
 
+    // ORIGINAL FUNCTION
     function addEntry() {
         const d = document.getElementById('i-date').value, n = document.getElementById('i-
 
