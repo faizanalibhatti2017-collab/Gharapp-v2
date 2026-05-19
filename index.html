@@ -10,6 +10,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     
     <style>
         :root { --primary: #f97316; --secondary: #a855f7; --success: #10b981; --danger: #ef4444; --bg: #0b0f1a; --card-bg: rgba(255, 255, 255, 0.05); }
@@ -339,11 +340,51 @@
         document.getElementById('mob-amount').innerText = 'RS. ' + mobAmt.toLocaleString();
     }
 
+    
+    async function smartOCRScan(imageData) {
+        try {
+            const result = await Tesseract.recognize(imageData, 'eng');
+            const text = result.data.text || "";
+
+            const lines = text.split('\n').map(x => x.trim()).filter(x => x.length > 0);
+
+            let productName = "";
+            let amount = null;
+
+            for (let line of lines) {
+                if (/[a-zA-Z]{3,}/.test(line) && !/\d{5,}/.test(line)) {
+                    if (line.length > 3 && line.length < 60) {
+                        productName = line;
+                        break;
+                    }
+                }
+            }
+
+            const priceMatches = text.match(/\d+(?:\.\d{1,2})?/g) || [];
+            const filtered = priceMatches.filter(v => {
+                let n = parseFloat(v);
+                return n > 5 && n < 100000;
+            });
+
+            if (filtered.length > 0) {
+                amount = parseFloat(filtered[filtered.length - 1]);
+            }
+
+            if (productName || amount) {
+                let combined = `${productName} ${amount || ""}`.trim();
+                processBruteForceScanEntry(combined);
+            }
+
+        } catch(err) {
+            console.log("OCR Error", err);
+        }
+    }
+
     function startCameraEngine() {
         if(!html5QrCode) {
             html5QrCode = new Html5Qrcode("reader");
-            
-            const formatsToSupport = [ 
+
+            const formatsToSupport = [
                 Html5QrcodeSupportedFormats.QR_CODE,
                 Html5QrcodeSupportedFormats.PDF_417,
                 Html5QrcodeSupportedFormats.AZTEC,
@@ -354,31 +395,46 @@
                 Html5QrcodeSupportedFormats.DATA_MATRIX
             ];
 
-            const config = { 
-                fps: 50, 
-                videoConstraints: {
-                    facingMode: "environment",
-                    width: { ideal: 1920 }, 
-                    height: { ideal: 1080 }
-                },
-                qrbox: (viewfinderWidth, viewfinderHeight) => {
-                    return { width: viewfinderWidth * 0.9, height: viewfinderHeight * 0.65 };
-                },
-                formatsToSupport: formatsToSupport
+            const config = {
+                fps: 20,
+                qrbox: { width: 300, height: 220 },
+                rememberLastUsedCamera: true,
+                aspectRatio: 1.777,
+                formatsToSupport: formatsToSupport,
+                experimentalFeatures: {
+                    useBarCodeDetectorIfSupported: true
+                }
             };
 
             html5QrCode.start(
                 { facingMode: "environment" },
                 config,
-                (decodedText) => {
+                async (decodedText) => {
                     processBruteForceScanEntry(decodedText);
                 },
-                (err) => {}
-            ).then(() => {
-                // Engine Live
-            }).catch(err => {
-                alert("Camera error: " + err);
+                () => {}
+            ).catch(err => {
+                alert("Camera Error: " + err);
             });
+
+            setInterval(async () => {
+                try {
+                    const video = document.querySelector("#reader video");
+
+                    if(video && video.readyState === 4) {
+                        const canvas = document.createElement("canvas");
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+
+                        const ctx = canvas.getContext("2d");
+                        ctx.drawImage(video, 0, 0);
+
+                        const imgData = canvas.toDataURL("image/png");
+
+                        smartOCRScan(imgData);
+                    }
+                } catch(e) {}
+            }, 5000);
         }
     }
 
@@ -390,7 +446,7 @@
         }
     }
 
-    // 🎯 TARGETED UNILEVER PRODUCT PARSER (Sirf Is Function Ko Replace Karein)
+// 🎯 TARGETED UNILEVER PRODUCT PARSER (Sirf Is Function Ko Replace Karein)
     function processBruteForceScanEntry(scannedCode) {
         stopCameraEngine();
         const today = new Date().toISOString().split('T')[0];
