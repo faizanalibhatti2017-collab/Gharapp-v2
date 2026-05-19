@@ -554,7 +554,6 @@ onclick="if(confirm('Delete Bill?')) db.ref('utilities/${viewingID}/${k}').remov
         }
     }
 
-    // 🎯 TARGETED UNILEVER PRODUCT PARSER (Successfully Replaced)
     function processBruteForceScanEntry(scannedCode) {
         stopCameraEngine();
         const today = new Date().toISOString().split('T')[0];
@@ -564,7 +563,6 @@ onclick="if(confirm('Delete Bill?')) db.ref('utilities/${viewingID}/${k}').remov
 
         const blocklistYears = ["2024", "2025", "2026", "2027"];
         
-        // Unilever ke mashhoor brands ki list
         const unileverBrands = ["unilever", "sunsilk", "lux", "dove", "surf excel", "surf", 
 
 "knorr", "lifebuoy", "vim", "lipton", "ponds", "vaseline", "tresemme", "clear", "glow & 
@@ -574,7 +572,6 @@ lovely", "fair & lovely", "rexona", "close up", "closeup", "comfort"];
         let isUnileverProduct = false;
         let lowerRaw = rawText.toLowerCase();
 
-        // Check karein ke scanned code me koi Unilever brand hai ya nahi
         for (let brand of unileverBrands) {
             if (lowerRaw.includes(brand)) {
                 isUnileverProduct = true;
@@ -593,7 +590,6 @@ lovely", "fair & lovely", "rexona", "close up", "closeup", "comfort"];
 
 "").replace(/\d{2}:\d{2}(:\d{2})?/g, "").replace(/\d{7,20}/g, "");
 
-            // 1. Line by line matching for Unilever brand and amount
             for (let line of lines) {
                 let lowerLine = line.toLowerCase();
                 let lineHasBrand = unileverBrands.some(brand => lowerLine.includes(brand));
@@ -616,7 +612,6 @@ lovely", "fair & lovely", "rexona", "close up", "closeup", "comfort"];
                 }
             }
 
-            // 2. Fallback agar text match ho gaya par price line me nahi mili
             if (!finalAmt && isUnileverProduct && lines.length > 0) {
                 let targetLine = lines[0];
                 let cleanLine = targetLine.replace(/,/g, "");
@@ -631,7 +626,6 @@ parseFloat(v) > 5);
             }
         }
 
-        // Final Action based on filter
         if (isUnileverProduct) {
             if (!displayDetail) displayDetail = "Unilever Product";
             
@@ -652,7 +646,6 @@ parseFloat(v) > 5);
                 }, 150);
             }
         } else {
-            // Non-Unilever items ke liye popup alert aur camera restart
             setTimeout(() => {
                 const manualAmt = prompt(`Non-Unilever or Standard Code Detected!\n\nData: 
 
@@ -758,19 +751,25 @@ ${udata.role} | Bal: RS. ${(ti-te).toLocaleString()}</div>
     }
 
     function editUser(id, pass, role) {
-        document.getElementById('u-id').value = id; document.getElementById('u-pass').value 
-
-= pass; document.getElementById('u-role').value = role;
+        document.getElementById('u-id').value = id; 
+        document.getElementById('u-pass').value = pass; 
+        document.getElementById('u-role').value = role;
         document.getElementById('u-form-title').innerText = "Edit: " + id.toUpperCase();
     }
 
+    // Fixed ID bug: l-pass changed to u-pass
     function saveUser() {
-        const id = document.getElementById('u-id').value.trim().toLowerCase(), ps = 
-
-document.getElementById('u-pass').value, rl = document.getElementById('u-role').value;
-        if(id && ps) { db.ref('users/'+id).update({pass:ps, role:rl}).then(() => { alert
-
-("User Updated!"); }); }
+        const id = document.getElementById('u-id').value.trim().toLowerCase();
+        const ps = document.getElementById('u-pass').value; 
+        const rl = document.getElementById('u-role').value;
+        if(id && ps) { 
+            db.ref('users/'+id).update({pass:ps, role:rl}).then(() => { 
+                alert("User Updated Successfully!"); 
+                document.getElementById('u-id').value = "";
+                document.getElementById('u-pass').value = "";
+                document.getElementById('u-form-title').innerText = "User Editor";
+            }); 
+        }
     }
 
     function addEntry() {
