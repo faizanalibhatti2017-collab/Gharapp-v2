@@ -331,6 +331,7 @@ southeast1.firebasedatabase.app",
 viewingID = myID;
     let html5QrCode = null;
 
+    // SHARE INTENT RECEIVER LOGIC FOR PWAs
     window.addEventListener('DOMContentLoaded', () => {
         const parsedUrl = new URL(window.location.href);
         const sharedText = parsedUrl.searchParams.get('text') || 
@@ -349,8 +350,9 @@ parsedUrl.searchParams.get('title') || parsedUrl.searchParams.get('url');
     });
 
     function login() {
-        const id = document.getElementById('l-id').value.trim().toLowerCase();
-        const ps = document.getElementById('l-pass').value.trim();
+        const id = document.getElementById('l-id').value.trim().toLowerCase(), ps = 
+
+document.getElementById('l-pass').value;
         if(id === "admin" && ps === "123") { authDone("admin", "admin"); return; }
         db.ref('users/'+id).once('value', snap => {
             if(snap.exists() && snap.val().pass === ps) authDone(id, snap.val().role);
@@ -516,29 +518,43 @@ onclick="if(confirm('Delete Bill?')) db.ref('utilities/${viewingID}/${k}').remov
 
             const config = { 
                 fps: 50, 
-                videoConstraints: { facingMode: "environment", width: { ideal: 1920 }, 
+                videoConstraints: {
+                    facingMode: "environment",
+                    width: { ideal: 1920 }, 
+                    height: { ideal: 1080 }
+                },
+                qrbox: (viewfinderWidth, viewfinderHeight) => {
+                    return { width: viewfinderWidth * 0.9, height: viewfinderHeight * 0.65 
 
-height: { ideal: 1080 } },
-                qrbox: (viewfinderWidth, viewfinderHeight) => { return { width: 
-
-viewfinderWidth * 0.9, height: viewfinderHeight * 0.65 }; },
+};
+                },
                 formatsToSupport: formatsToSupport
             };
 
-            html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => { 
-
-processBruteForceScanEntry(decodedText); }, (err) => {})
-            .then(() => {}).catch(err => { alert("Camera error: " + err); });
+            html5QrCode.start(
+                { facingMode: "environment" },
+                config,
+                (decodedText) => {
+                    processBruteForceScanEntry(decodedText);
+                },
+                (err) => {}
+            ).then(() => {
+                // Engine Live
+            }).catch(err => {
+                alert("Camera error: " + err);
+            });
         }
     }
 
     function stopCameraEngine() {
         if(html5QrCode) {
-            html5QrCode.stop().then(() => { html5QrCode = null; }).catch(e => {});
+            html5QrCode.stop().then(() => {
+                html5QrCode = null;
+            }).catch(e => {});
         }
     }
 
-    // 🎯 TARGETED UNILEVER PRODUCT PARSER
+    // 🎯 TARGETED UNILEVER PRODUCT PARSER (Successfully Replaced)
     function processBruteForceScanEntry(scannedCode) {
         stopCameraEngine();
         const today = new Date().toISOString().split('T')[0];
@@ -548,7 +564,7 @@ processBruteForceScanEntry(decodedText); }, (err) => {})
 
         const blocklistYears = ["2024", "2025", "2026", "2027"];
         
-        // Unilever brands list mapping
+        // Unilever ke mashhoor brands ki list
         const unileverBrands = ["unilever", "sunsilk", "lux", "dove", "surf excel", "surf", 
 
 "knorr", "lifebuoy", "vim", "lipton", "ponds", "vaseline", "tresemme", "clear", "glow & 
@@ -558,7 +574,7 @@ lovely", "fair & lovely", "rexona", "close up", "closeup", "comfort"];
         let isUnileverProduct = false;
         let lowerRaw = rawText.toLowerCase();
 
-        // Check if scanned code matches any Unilever brand
+        // Check karein ke scanned code me koi Unilever brand hai ya nahi
         for (let brand of unileverBrands) {
             if (lowerRaw.includes(brand)) {
                 isUnileverProduct = true;
@@ -577,7 +593,7 @@ lovely", "fair & lovely", "rexona", "close up", "closeup", "comfort"];
 
 "").replace(/\d{2}:\d{2}(:\d{2})?/g, "").replace(/\d{7,20}/g, "");
 
-            // 1. Line match for Unilever item and price extraction
+            // 1. Line by line matching for Unilever brand and amount
             for (let line of lines) {
                 let lowerLine = line.toLowerCase();
                 let lineHasBrand = unileverBrands.some(brand => lowerLine.includes(brand));
@@ -600,7 +616,7 @@ lovely", "fair & lovely", "rexona", "close up", "closeup", "comfort"];
                 }
             }
 
-            // 2. Fallback if no specific brand line has numbers but text matches Unilever
+            // 2. Fallback agar text match ho gaya par price line me nahi mili
             if (!finalAmt && isUnileverProduct && lines.length > 0) {
                 let targetLine = lines[0];
                 let cleanLine = targetLine.replace(/,/g, "");
@@ -615,7 +631,7 @@ parseFloat(v) > 5);
             }
         }
 
-        // Final Verification
+        // Final Action based on filter
         if (isUnileverProduct) {
             if (!displayDetail) displayDetail = "Unilever Product";
             
@@ -636,7 +652,7 @@ parseFloat(v) > 5);
                 }, 150);
             }
         } else {
-            // Non-Unilever items ko alert de kar bypass ya standard alert trigger karega
+            // Non-Unilever items ke liye popup alert aur camera restart
             setTimeout(() => {
                 const manualAmt = prompt(`Non-Unilever or Standard Code Detected!\n\nData: 
 
@@ -657,9 +673,12 @@ rawText;
     }
 
     function executeDatabasePush(date, detail, amount, rawCode) {
-        db.ref('data/' + viewingID).push({ d: date, n: detail, a: amount, t: 'exp' }).then
-
-(() => {
+        db.ref('data/' + viewingID).push({
+            d: date,
+            n: detail,
+            a: amount,
+            t: 'exp'
+        }).then(() => {
             alert(`✅ Record Saved Successfully!\n\nDetail: ${detail}\nAmount Added: RS. 
 
 ${amount.toLocaleString()}`);
@@ -748,7 +767,7 @@ ${udata.role} | Bal: RS. ${(ti-te).toLocaleString()}</div>
     function saveUser() {
         const id = document.getElementById('u-id').value.trim().toLowerCase(), ps = 
 
-document.getElementById('l-pass').value, rl = document.getElementById('u-role').value;
+document.getElementById('u-pass').value, rl = document.getElementById('u-role').value;
         if(id && ps) { db.ref('users/'+id).update({pass:ps, role:rl}).then(() => { alert
 
 ("User Updated!"); }); }
