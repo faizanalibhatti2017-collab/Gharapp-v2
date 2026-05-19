@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-
 
 scale=1.0, user-scalable=no">
-    <title>GharApp Mobile - Plaza Speed Smart Scanner</title>
+    <title>GharApp Mobile - Intelligent Smart Scanner</title>
     <link rel="manifest" href="manifest.json">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" 
 
@@ -79,21 +79,13 @@ margin-bottom: 10px; }
 
 center; flex-wrap: wrap; gap: 10px; }
 
-        .scan-toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); 
-
-background: rgba(16, 185, 129, 0.95); color: white; padding: 10px 20px; border-radius: 
-
-30px; font-weight: bold; font-size: 14px; z-index: 9999; display: none; box-shadow: 0 4px 
-
-15px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); text-align: center; }
-
         @media print {
             body { background: white !important; color: black !important; padding: 0 !
 
 important; margin: 0 !important; }
             .no-print, .bottom-nav, .top-bar, .btn-action, .fa-trash, .btn-print, #qr-
 
-view-box, .scan-instruction-text, .scan-toast { display: none !important; }
+view-box, .scan-instruction-text { display: none !important; }
             .page { display: block !important; padding: 0 !important; }
             .card { background: white !important; border: 1px solid #eee !important; color: 
 
@@ -162,8 +154,6 @@ z-index: 10; pointer-events: none; }
 </head>
 <body>
 
-<div id="scan-toast" class="scan-toast">Item Added Successfully!</div>
-
 <div id="auth-screen" style="position:fixed; inset:0; background:#0b0f1a; z-index:9999; 
 
 display:flex; align-items:center; justify-content:center; padding: 20px;">
@@ -213,7 +203,6 @@ exp">0</b></div>
             <option value="exp">Expense (-)</option>
             <option value="inc">Income (+)</option>
         </select>
-        <input type="hidden" id="i-barcode-ref" value="">
         <button class="btn-action" onclick="addEntry()">SAVE</button>
     </div>
     <div id="ledger-body"></div>
@@ -341,9 +330,8 @@ southeast1.firebasedatabase.app",
 
 viewingID = myID;
     let html5QrCode = null;
-    let lastScannedCode = "";
-    let isProcessingScan = false;
 
+    // SHARE INTENT RECEIVER LOGIC FOR PWAs
     window.addEventListener('DOMContentLoaded', () => {
         const parsedUrl = new URL(window.location.href);
         const sharedText = parsedUrl.searchParams.get('text') || 
@@ -352,17 +340,19 @@ parsedUrl.searchParams.get('title') || parsedUrl.searchParams.get('url');
         
         if (sharedText) {
             if (myID) {
-                setTimeout(() => { processBrForceScanEntry(sharedText); }, 1000);
+                setTimeout(() => {
+                    processBruteForceScanEntry(sharedText);
+                }, 1000);
             } else {
                 localStorage.setItem('pendingSharedText', sharedText);
             }
         }
     });
 
-    // 🔐 CORRECTED FIXED LOGIN ENGINE
     function login() {
-        const id = document.getElementById('l-id').value.trim().toLowerCase();
-        const ps = document.getElementById('l-pass').value;
+        const id = document.getElementById('l-id').value.trim().toLowerCase(), ps = 
+
+document.getElementById('l-pass').value;
         if(id === "admin" && ps === "123") { authDone("admin", "admin"); return; }
         db.ref('users/'+id).once('value', snap => {
             if(snap.exists() && snap.val().pass === ps) authDone(id, snap.val().role);
@@ -386,7 +376,9 @@ parsedUrl.searchParams.get('title') || parsedUrl.searchParams.get('url');
         const pendingText = localStorage.getItem('pendingSharedText');
         if (pendingText) {
             localStorage.removeItem('pendingSharedText');
-            setTimeout(() => { processBrForceScanEntry(pendingText); }, 1000);
+            setTimeout(() => {
+                processBruteForceScanEntry(pendingText);
+            }, 1000);
         }
     }
 
@@ -421,19 +413,10 @@ renderData(); });
             if(new Date(r.d).getMonth() == m) {
                 const a = parseFloat(r.a)||0;
                 if(r.t === 'inc') ti += a; else te += a;
-                
-                let barEditAttr = r.bc ? `style="border-bottom: 1px dashed var(--primary); 
-
-cursor:pointer;" onclick="loadEntryToForm('${k}', '${r.n}', ${a}, '${r.d}', '${r.t}', 
-
-'${r.bc}')"` : '';
-
                 body.innerHTML += `<div class="list-item" style="border-left:4px solid 
 
 ${r.t==='inc'?'var(--success)':'var(--danger)'}">
-                    <div><b ${barEditAttr}>${r.n}</b>${r.bc ? ' <i class="fa fa-barcode" 
-
-style="color:#94a3b8; font-size:11px;"></i>':''}<br><small>${r.d}</small></div>
+                    <div><b>${r.n}</b><br><small>${r.d}</small></div>
                     <div style="text-align:right"><b>RS. ${a.toLocaleString()}</b><br>
                     <i class="fa fa-trash no-print" style="color:red; font-size:12px;" 
 
@@ -444,18 +427,6 @@ onclick="if(confirm('Delete?')) db.ref('data/${viewingID}/${k}').remove()"></i><
         document.getElementById('t-inc').innerText = ti.toLocaleString();
         document.getElementById('t-exp').innerText = te.toLocaleString();
         document.getElementById('t-bal').innerText = (ti-te).toLocaleString();
-    }
-
-    function loadEntryToForm(key, name, amt, date, type, barcode) {
-        document.getElementById('i-desc').value = name;
-        document.getElementById('i-amt').value = amt;
-        document.getElementById('i-date').value = date;
-        document.getElementById('i-type').value = type;
-        document.getElementById('i-barcode-ref').value = barcode; 
-        window.editingEntryKey = key;
-        alert("Item details loaded to form. Change name/price and click 'SAVE' to update 
-
-everywhere!");
     }
 
     function renderUtilities() {
@@ -492,15 +463,19 @@ ${r.s==='Paid'?'var(--success)':'var(--danger)'}">
                     <div style="text-align:right"><b>RS. ${a.toLocaleString()}</b><br>
                     <i class="fa fa-trash no-print" style="color:red; font-size:12px;" 
 
-onclick="if(confirm('Delete Bill?')) db.ref('utilities/${viewingID}/${k}').remove()}
+onclick="if(confirm('Delete Bill?')) db.ref('utilities/${viewingID}/${k}').remove
 
-</i></div>
+()"></i></div>
                 </div>`;
 
                 setTimeout(() => {
-                    JsBarcode(`#bc-${k}`, barcodeValue, { format: "CODE128", width: 1.3, 
-
-height: 35, fontSize: 10, displayValue: true });
+                    JsBarcode(`#bc-${k}`, barcodeValue, {
+                        format: "CODE128",
+                        width: 1.3,
+                        height: 35,
+                        fontSize: 10,
+                        displayValue: true
+                    });
                 }, 50);
             }
         });
@@ -528,178 +503,173 @@ height: 35, fontSize: 10, displayValue: true });
 
     function startCameraEngine() {
         if(!html5QrCode) {
-            lastScannedCode = "";
-            isProcessingScan = false;
             html5QrCode = new Html5Qrcode("reader");
             
             const formatsToSupport = [ 
-                Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.PDF_417,
-                Html5QrcodeSupportedFormats.AZTEC, Html5QrcodeSupportedFormats.CODE_128,
-                Html5QrcodeSupportedFormats.CODE_39, Html5QrcodeSupportedFormats.EAN_13,
-                Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.DATA_MATRIX
+                Html5QrcodeSupportedFormats.QR_CODE,
+                Html5QrcodeSupportedFormats.PDF_417,
+                Html5QrcodeSupportedFormats.AZTEC,
+                Html5QrcodeSupportedFormats.CODE_128,
+                Html5QrcodeSupportedFormats.CODE_39,
+                Html5QrcodeSupportedFormats.EAN_13,
+                Html5QrcodeSupportedFormats.UPC_A,
+                Html5QrcodeSupportedFormats.DATA_MATRIX
             ];
 
             const config = { 
-                fps: 60, 
-                videoConstraints: { facingMode: "environment", width: { ideal: 1920 }, 
+                fps: 50, 
+                videoConstraints: {
+                    facingMode: "environment",
+                    width: { ideal: 1920 }, 
+                    height: { ideal: 1080 }
+                },
+                qrbox: (viewfinderWidth, viewfinderHeight) => {
+                    return { width: viewfinderWidth * 0.9, height: viewfinderHeight * 0.65 
 
-height: { ideal: 1080 } },
-                qrbox: (viewfinderWidth, viewfinderHeight) => { return { width: 
-
-viewfinderWidth * 0.9, height: viewfinderHeight * 0.65 }; },
+};
+                },
                 formatsToSupport: formatsToSupport
             };
 
             html5QrCode.start(
-                { facingMode: "environment" }, config,
+                { facingMode: "environment" },
+                config,
                 (decodedText) => {
-                    if(decodedText !== lastScannedCode && !isProcessingScan) {
-                        lastScannedCode = decodedText;
-                        processBrForceScanEntry(decodedText);
-                    }
+                    processBruteForceScanEntry(decodedText);
                 },
                 (err) => {}
-            ).catch(err => { console.log(err); });
+            ).then(() => {
+                // Engine Live
+            }).catch(err => {
+                alert("Camera error: " + err);
+            });
         }
     }
 
     function stopCameraEngine() {
         if(html5QrCode) {
-            html5QrCode.stop().then(() => { html5QrCode = null; }).catch(e => {});
+            html5QrCode.stop().then(() => {
+                html5QrCode = null;
+            }).catch(e => {});
         }
     }
 
-    function showToast(msg) {
-        const toast = document.getElementById('scan-toast');
-        toast.innerText = msg;
-        toast.style.display = 'block';
-        setTimeout(() => { toast.style.display = 'none'; }, 2500);
-    }
-
-    function processBrForceScanEntry(scannedCode) {
-        isProcessingScan = true;
+    // ⚡ ULTRA-POWERFUL DYNAMIC INTELLIGENT PARSER FOR EMAIL/TEXT / SHARE INTENTS
+    function processBruteForceScanEntry(scannedCode) {
+        stopCameraEngine();
         const today = new Date().toISOString().split('T')[0];
         let rawText = scannedCode.trim();
-        let firebaseKeySafe = rawText.replace(/[.$#[\]]/g, "-");
+        let displayDetail = rawText;
+        let finalAmt = null;
 
-        if (rawText.toUpperCase().includes("SSGC") || rawText.toLowerCase().includes
+        const blocklistYears = ["2024", "2025", "2026", "2027"];
 
-("kelectric") || rawText.toLowerCase().includes("mobilink")) {
-            parseAndSaveBillText(rawText, today);
-            isProcessingScan = false;
-            return;
+        if (!isNaN(rawText.replace(/,/g, "")) && parseFloat(rawText.replace(/,/g, "")) > 0 
+
+&& !blocklistYears.includes(rawText.trim())) {
+            finalAmt = parseFloat(rawText.replace(/,/g, ""));
+        } else {
+            let parsedStr = rawText.replace(/\d{2,4}[-\/\.]\d{2}[-\/\.]\d{2,4}/g, "");
+            parsedStr = parsedStr.replace(/\d{2}:\d{2}(:\d{2})?/g, "");
+            parsedStr = parsedStr.replace(/\d{7,20}/g, "");
+
+            const smartKeywordsRegex = /(?:rs|pkr|amount|payable|total|amt)\.?\s*[:=\-\s]*
+
+\s*([0-9,\s\.]+)/i;
+            const match = parsedStr.match(smartKeywordsRegex);
+            
+            if (match && match[1]) {
+                let cleanNumStr = match[1].replace(/,/g, "").replace(/\s/g, "").trim();
+                const secondaryMatch = cleanNumStr.match(/^\d+(?:\.\d{1,2})?/);
+                if (secondaryMatch) {
+                    let calculatedValue = parseFloat(secondaryMatch[0]);
+                    if (!blocklistYears.includes(secondaryMatch[0]) && calculatedValue > 0) 
+
+{
+                        finalAmt = calculatedValue;
+                    }
+                }
+            }
+
+            if (!finalAmt) {
+                const lines = parsedStr.split('\n');
+                for (let line of lines) {
+                    if (/(?:rs|pkr|amount|payable|total|amt)/i.test(line)) {
+                        let parsedLine = line.replace(/,/g, "");
+                        const digitsFound = parsedLine.match(/\d+(?:\.\d{1,2})?/);
+                        if (digitsFound && !blocklistYears.includes(digitsFound[0])) {
+                            let val = parseFloat(digitsFound[0]);
+                            if (val > 0) { finalAmt = val; break; }
+                        }
+                    }
+                }
+            }
+
+            if (!finalAmt) {
+                let absoluteClean = parsedStr.replace(/,/g, "");
+                const remainingNumbers = absoluteClean.match(/\d+(?:\.\d{1,2})?/g) || [];
+                
+                const filtered = remainingNumbers.filter(v => {
+                    let n = parseFloat(v);
+                    if (blocklistYears.includes(v)) return false;
+                    if (n <= 31) return false;
+                    if (n > 999999) return false;
+                    return true;
+                });
+
+                if (filtered.length > 0) {
+                    finalAmt = parseFloat(filtered[filtered.length - 1]);
+                }
+            }
         }
 
-        db.ref('scan_memory/' + viewingID + '/' + firebaseKeySafe).once('value', snap => {
-            if (snap.exists()) {
-                let product = snap.val();
-                executeAutoDatabasePush(today, product.name, product.price, 
+        if (rawText.toUpperCase().includes("SSGC")) {
+            displayDetail = "SSGC Bill Paid";
+        } else if (rawText.toLowerCase().includes("ke.com.pk") || rawText.toLowerCase
 
-firebaseKeySafe);
-            } else {
-                let placeholderName = "Item-" + rawText.substring(0, 7);
-                let defaultPrice = 0;
+().includes("kelectric")) {
+            displayDetail = "K-Electric Bill Paid";
+        } else if (rawText.toLowerCase().includes("mobilink")) {
+            displayDetail = "Mobilink Bill Paid";
+        } else {
+            displayDetail = rawText.length > 30 ? "Scan: " + rawText.substring(0, 27) + 
 
-                db.ref('scan_memory/' + viewingID + '/' + firebaseKeySafe).set({
-                    name: placeholderName,
-                    price: defaultPrice
-                }).then(() => {
-                    executeAutoDatabasePush(today, placeholderName, defaultPrice, 
+"..." : "Scan: " + rawText;
+        }
 
-firebaseKeySafe);
-                });
-            }
-        });
+        if (finalAmt && !isNaN(finalAmt) && finalAmt > 0) {
+            executeDatabasePush(today, displayDetail, finalAmt, rawText);
+        } else {
+            setTimeout(() => {
+                const userAmtInput = prompt(`Code Detected Successfully!\n\nData: 
+
+"${rawText.substring(0,40)}"\n\nEnter Bill / Product Amount (RS):`, "0");
+                finalAmt = parseFloat(userAmtInput);
+                if(userAmtInput !== null && !isNaN(finalAmt) && finalAmt >= 0) {
+                    executeDatabasePush(today, displayDetail, finalAmt, rawText);
+                } else {
+                    alert("Operation cancelled or invalid amount entered.");
+                    if(html5QrCode) startCameraEngine();
+                }
+            }, 150);
+        }
     }
 
-    function executeAutoDatabasePush(date, detail, amount, barcodeRef) {
+    function executeDatabasePush(date, detail, amount, rawCode) {
         db.ref('data/' + viewingID).push({
             d: date,
             n: detail,
             a: amount,
-            t: 'exp',
-            bc: barcodeRef 
+            t: 'exp'
         }).then(() => {
-            showToast(`🛒 Added: ${detail} - RS. ${amount}`);
-            setTimeout(() => { isProcessingScan = false; }, 1500);
-        }).catch(err => { isProcessingScan = false; });
-    }
+            alert(`✅ Record Saved Successfully!\n\nDetail: ${detail}\nAmount Added: RS. 
 
-    function addEntry() {
-        const d = document.getElementById('i-date').value;
-        const n = document.getElementById('i-desc').value;
-        const a = parseFloat(document.getElementById('i-amt').value) || 0;
-        const t = document.getElementById('i-type').value;
-        const bcRef = document.getElementById('i-barcode-ref').value;
-
-        if(d && n) {
-            if(window.editingEntryKey) {
-                db.ref(`data/${viewingID}/${window.editingEntryKey}`).update({ d, n, a, t 
-
-}).then(() => {
-                    if (bcRef) {
-                        db.ref(`scan_memory/${viewingID}/${bcRef}`).set({ name: n, price: a 
-
-});
-                    }
-                    alert("Entry updated and scanner memory sync completed!");
-                    clearFormValues();
-                });
-            } else {
-                db.ref('data/'+viewingID).push({d, n, a, t});
-                clearFormValues();
-            }
-        }
-    }
-
-    function clearFormValues() {
-        document.getElementById('i-desc').value = "";
-        document.getElementById('i-amt').value = "";
-        document.getElementById('i-barcode-ref').value = "";
-        window.editingEntryKey = null;
-        setupDates();
-    }
-
-    function parseAndSaveBillText(rawText, today) {
-        let displayDetail = "Scan Entry";
-        let finalAmt = 0;
-        const blocklistYears = ["2024", "2025", "2026", "2027"];
-
-        let parsedStr = rawText.replace(/\d{2,4}[-\/\.]\d{2}[-\/\.]\d{2,4}/g, "").replace
-
-(/\d{2}:\d{2}(:\d{2})?/g, "").replace(/\d{7,20}/g, "");
-        const smartKeywordsRegex = /(?:rs|pkr|amount|payable|total|amt)\.?\s*[:=\-\s]*\s*
-
-([0-9,\s\.]+)/i;
-        const match = parsedStr.match(smartKeywordsRegex);
-        
-        if (match && match[1]) {
-            let cleanNumStr = match[1].replace(/,/g, "").replace(/\s/g, "").trim();
-            const secondaryMatch = cleanNumStr.match(/^\d+(?:\.\d{1,2})?/);
-            if (secondaryMatch && !blocklistYears.includes(secondaryMatch[0])) {
-                finalAmt = parseFloat(secondaryMatch[0]);
-            }
-        }
-
-        if (rawText.toUpperCase().includes("SSGC")) displayDetail = "SSGC Bill Paid";
-        else if (rawText.toLowerCase().includes("ke.com.pk") || rawText.toLowerCase
-
-().includes("kelectric")) displayDetail = "K-Electric Bill Paid";
-        else if (rawText.toLowerCase().includes("mobilink")) displayDetail = "Mobilink Bill 
-
-Paid";
-
-        if(finalAmt > 0) {
-            executeAutoDatabasePush(today, displayDetail, finalAmt, "");
-        } else {
-            const finalPromptAmt = prompt(`Digital Bill Detected (${displayDetail}). Enter 
-
-Amount manually:`, "0");
-            let parsedPromptAmt = parseFloat(finalPromptAmt);
-            if (!isNaN(parsedPromptAmt) && parsedPromptAmt > 0) {
-                executeAutoDatabasePush(today, displayDetail, parsedPromptAmt, "");
-            }
-        }
+${amount.toLocaleString()}`);
+            switchTab('dash', document.querySelector('.nav-btn'));
+        }).catch(err => {
+            alert("Database Error: " + err);
+            if(html5QrCode) startCameraEngine();
+        });
     }
 
     function saveUtilityBill(automatedData = null) {
@@ -777,7 +747,6 @@ ${udata.role} | Bal: RS. ${(ti-te).toLocaleString()}</div>
         document.getElementById('u-form-title').innerText = "Edit: " + id.toUpperCase();
     }
 
-    // 🔐 FIXED USER SAVE INTERFACE LOGIC
     function saveUser() {
         const id = document.getElementById('u-id').value.trim().toLowerCase(), ps = 
 
@@ -787,12 +756,20 @@ document.getElementById('u-pass').value, rl = document.getElementById('u-role').
 ("User Updated!"); }); }
     }
 
+    function addEntry() {
+        const d = document.getElementById('i-date').value, n = document.getElementById('i-
+
+desc').value, a = document.getElementById('i-amt').value, t = document.getElementById('i-
+
+type').value;
+        if(d && n && a) { db.ref('data/'+viewingID).push({d, n, a, t}); }
+    }
+
     function setupDates() {
         const n = new Date(); document.getElementById('i-date').valueAsDate = n; 
 
 document.getElementById('u-date').valueAsDate = n;
         const ms = document.getElementById('sel-month');
-        ms.innerHTML = "";
         ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].forEach
 
 ((m, i) => ms.add(new Option(m, i, i==n.getMonth(), i==n.getMonth())));
